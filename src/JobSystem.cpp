@@ -84,11 +84,11 @@ namespace job_system {
             }
 
             std::unique_lock<std::mutex> lck(workers_updated_mtx);
+            if(!worker.idle.load()) continue;
             workers_updated_cv.wait(lck, [worker_index] {
                 // continue sleeping if no job assigned and system still working
                 return !workers[worker_index].idle.load() || !system_working.load();
             });
-            lck.unlock();
         }
     }
 
@@ -96,9 +96,10 @@ namespace job_system {
         while (system_working.load()) {
 
             // Wait untill job is done or added
-            std::unique_lock<std::mutex> system_loop_lock(system_loop_updated_mtx);
-            system_loop_updated_cv.wait(system_loop_lock);
-            system_loop_lock.unlock();
+//            std::unique_lock<std::mutex> system_loop_lock(system_loop_updated_mtx);
+//            system_loop_updated_cv.wait(system_loop_lock);
+//            system_loop_lock.unlock();
+// deadlock
 
             std::unique_lock<std::mutex> pending_jobs_lock(pending_jobs_mtx);
             bool no_jobs_to_dispatch = pending_jobs.empty();

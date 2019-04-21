@@ -37,16 +37,19 @@ TEST(JobSystemTest, testStartStop) {
 }
 
 TEST(JobSystemTest, testLongAndInexpensiveTest_DispatchAndWait) {
-    job_system::start();
 
-    for(int index = 0; index < 150000 ; index++) {
-        auto counter_job = std::make_shared<CounterJob>();
-        job_system::dispatch(counter_job);
-        job_system::wait_for_done();
-        EXPECT_EQ(counter_job->counter, 1);
+    for(int x =0 ; x < 1000;x++) {
+        job_system::start();
+
+        for (int index = 0; index < 100; index++) {
+            auto counter_job = std::make_shared<CounterJob>();
+            job_system::dispatch(counter_job);
+            job_system::wait_for_done();
+            EXPECT_EQ(counter_job->counter, 1);
+        }
+
+        job_system::shutdown();
     }
-
-    job_system::shutdown();
 }
 
 TEST(JobSystemTest, testLongAndExpensiveTest_MultipleDispatchThenWait) {
