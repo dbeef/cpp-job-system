@@ -3,7 +3,7 @@
 //
 
 #include "gmock/gmock.h"
-#include "../JobSystem.h"
+#include "JobSystem.hpp"
 
 using ::testing::AtLeast;
 
@@ -31,15 +31,15 @@ public:
 
 TEST(JobSystemTest, testStartStop) {
     job_system::start();
-    EXPECT_EQ(job_system::system_working.load(), true);
+    EXPECT_EQ(job_system::is_working(), true);
     job_system::shutdown();
-    EXPECT_EQ(job_system::system_working.load(), false);
+    EXPECT_EQ(job_system::is_working(), false);
 }
 
-TEST(JobSystemTest, testBasicTest) {
+TEST(JobSystemTest, testLongAndInexpensiveTest_DispatchAndWait) {
     job_system::start();
 
-    for(int index = 0; index < 100000 ; index++) {
+    for(int index = 0; index < 150000 ; index++) {
         auto counter_job = std::make_shared<CounterJob>();
         job_system::dispatch(counter_job);
         job_system::wait_for_done();
@@ -49,7 +49,7 @@ TEST(JobSystemTest, testBasicTest) {
     job_system::shutdown();
 }
 
-TEST(JobSystemTest, testLongAndExpensiveTest) {
+TEST(JobSystemTest, testLongAndExpensiveTest_MultipleDispatchThenWait) {
     job_system::start();
 
     // create jobs

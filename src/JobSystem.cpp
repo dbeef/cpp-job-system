@@ -2,52 +2,34 @@
 // Created by dbeef on 4/21/19.
 //
 
-#ifndef JOB_SYSTEM_JOBSYSTEM_H
-#define JOB_SYSTEM_JOBSYSTEM_H
-
-#include <memory>
-#include <mutex>
-#include <thread>
-#include <queue>
-#include <condition_variable>
-#include <atomic>
-
-class Job {
-public:
-    std::atomic_bool done{false};
-
-    virtual void execute() = 0;
-};
-
-class Worker {
-public:
-    std::atomic_bool idle{true};
-    std::thread thread;
-    std::shared_ptr<Job> job;
-};
+#include <JobSystem.hpp>
 
 namespace job_system {
 
     static const int WORKERS_COUNT = 12;
 
-    std::atomic_bool added_job{false};
-    std::atomic_bool system_working{false};
-    std::thread system_thread;
-    std::array<Worker, WORKERS_COUNT> workers;
+    static std::atomic_bool added_job{false};
+    static std::atomic_bool system_working{false};
+    static std::thread system_thread;
+    static std::array<Worker, WORKERS_COUNT> workers;
 
     // for accessing pending_jobs queue
-    std::mutex pending_jobs_mtx;
-    std::queue<std::shared_ptr<Job>> pending_jobs;
+    static std::mutex pending_jobs_mtx;
+    static std::queue<std::shared_ptr<Job>> pending_jobs;
 
     // for synchronizing system loop with adding and finishing jobs
-    std::mutex system_loop_updated_mtx;
-    std::condition_variable system_loop_updated_cv;
+    static std::mutex system_loop_updated_mtx;
+    static std::condition_variable system_loop_updated_cv;
 
     // for synchronizing worker loop with job dispatched from system loop
-    std::mutex workers_updated_mtx;
-    std::condition_variable workers_updated_cv;
+    static std::mutex workers_updated_mtx;
+    static std::condition_variable workers_updated_cv;
 
-    int get_idle_worker() {
+    bool is_working(){
+        return system_working.load();
+    }
+
+    static int get_idle_worker(){
         for (int index = 0; index < WORKERS_COUNT; index++)
             if (workers[index].idle.load()) return index;
         return -1;
@@ -110,7 +92,6 @@ namespace job_system {
         }
     }
 
-    // returns when pending jobs queue is empty and all workers are idle
     void wait_for_done() {
         while (system_working.load()) {
 
@@ -148,7 +129,6 @@ namespace job_system {
     }
 
     void start() {
-
         if (system_working.load()) return;
 
         system_working.store(true);
@@ -171,7 +151,5 @@ namespace job_system {
         system_thread.join();
         for (int index = 0; index < WORKERS_COUNT; index++) workers[index].thread.join();
     }
+
 }
-
-#endif //JOB_SYSTEM_JOBSYSTEM_H
-
