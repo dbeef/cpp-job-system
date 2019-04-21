@@ -15,6 +15,8 @@
 
 class Job {
 public:
+    std::atomic_bool done{false};
+
     virtual void execute() = 0;
 };
 
@@ -27,7 +29,7 @@ public:
 
 namespace job_system {
 
-    static const int WORKERS_COUNT = 2;
+    static const int WORKERS_COUNT = 12;
 
     std::atomic_bool system_working{false};
 
@@ -58,7 +60,9 @@ namespace job_system {
 
             std::unique_lock<std::mutex> pending_jobs_guard(pending_jobs_mtx);
 
-            if (!pending_jobs.empty()) {
+            bool dispatched = false;
+
+            while (!pending_jobs.empty()) {
                 int worker_id = get_idle_worker();
                 if (worker_id >= 0) {
                     std::cout << "Giving work to worker: " << worker_id << std::endl;
@@ -70,11 +74,14 @@ namespace job_system {
                     workers[worker_id].idle.store(false);
                     std::cout << "System loop notifies" << std::endl;
                     job_lock.unlock();
-                    job_system_updated.notify_all();
+                    dispatched = true;
                 } else {
                     std::cout << "Could not find idle worker" << std::endl;
+                    break;
                 }
             }
+            if(dispatched) job_system_updated.notify_all();
+
 
             pending_jobs_guard.unlock();
 
@@ -95,10 +102,11 @@ namespace job_system {
             if (!worker.idle.load()) {
                 std::cout << "Worker " << worker_index << " executes job" << std::endl;
                 worker.job->execute();
+                worker.job->done.store(true);
                 worker.idle.store(true);
                 std::cout << "Worker " << worker_index << " notifies" << std::endl;
-                main_loop.notify_one();
-            } else{
+                main_loop.notify_all();
+            } else {
                 std::cout << "Worker " << worker_index << " has no job" << std::endl;
             }
 
@@ -106,12 +114,18 @@ namespace job_system {
             std::unique_lock<std::mutex> lck(job_system_updated_mtx);
             std::cout << "Worker " << worker_index << " waits for update" << std::endl;
             job_system_updated.wait(lck, [worker_index] {
-                std::cout << "IDLE: " << workers[worker_index].idle.load() << std::endl;
-                bool result = (!workers[worker_index].idle.load() || !system_working.load());
-                if(!result) std::cout << "Still sleeping " << workers[worker_index].idle.load() << " " << system_working.load() << std::endl;
-                else std::cout << "Finishing sleeping " << workers[worker_index].idle.load() << " " << system_working.load() << std::endl;
-                return result;}
-                );
+                                        std::cout << "IDLE: " << workers[worker_index].idle.load() << std::endl;
+                                        bool result = (!workers[worker_index].idle.load() || !system_working.load());
+                                        if (!result)
+                                            std::cout << "Still sleeping " << workers[worker_index].idle.load() << " " << system_working.load()
+                                                      << std::endl;
+                                        else
+                                            std::cout << "Finishing sleeping " << workers[worker_index].idle.load() << " "
+                                                      << system_working.load() << std::endl;
+                                        return result;
+                                    }
+            );
+
             lck.unlock();
         }
 
@@ -121,6 +135,10 @@ namespace job_system {
     void wait_for_done() {
 
         while (system_working.load()) {
+
+            std::unique_lock<std::mutex> main_loop_lock(main_loop_updated_mtx);
+            main_loop.wait(main_loop_lock);
+            main_loop_lock.unlock();
 
             std::unique_lock<std::mutex> pending_jobs_lock(pending_jobs_mtx);
             bool no_jobs_to_dispatch = pending_jobs.empty();
@@ -147,7 +165,8 @@ namespace job_system {
             pending_jobs.push(job);
         }
         {
-            main_loop.notify_one();
+            // notify all since wait_for_done may be called
+            main_loop.notify_all();
         }
     }
 
@@ -183,7 +202,7 @@ namespace job_system {
         job_system_updated.notify_all();
 
         std::cout << "Waiting for system thread to join" << std::endl;
-        main_loop.notify_one();
+        main_loop.notify_all();
         system_thread.join();
         for (int index = 0; index < WORKERS_COUNT; index++) {
             std::cout << "Shutdown notifies" << std::endl;
