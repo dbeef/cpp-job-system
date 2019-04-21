@@ -8,6 +8,7 @@ namespace job_system {
 
     static const int WORKERS_COUNT = 12;
 
+    static std::atomic_bool job_done{false};
     static std::atomic_bool added_job{false};
     static std::atomic_bool system_working{false};
     static std::thread system_thread;
@@ -79,6 +80,10 @@ namespace job_system {
                 worker.job->done.store(true);
                 worker.idle.store(true);
 
+                std::unique_lock<std::mutex> lck(system_loop_updated_mtx);
+                job_done.store(true);
+                lck.unlock();
+
                 // wake system loop
                 system_loop_updated_cv.notify_all();
             }
@@ -96,10 +101,11 @@ namespace job_system {
         while (system_working.load()) {
 
             // Wait untill job is done or added
-//            std::unique_lock<std::mutex> system_loop_lock(system_loop_updated_mtx);
-//            system_loop_updated_cv.wait(system_loop_lock);
-//            system_loop_lock.unlock();
-// deadlock
+            std::unique_lock<std::mutex> system_loop_lock(system_loop_updated_mtx);
+            if(!job_done.load()) {
+                system_loop_updated_cv.wait(system_loop_lock);
+            } else job_done.store(false);
+            system_loop_lock.unlock();
 
             std::unique_lock<std::mutex> pending_jobs_lock(pending_jobs_mtx);
             bool no_jobs_to_dispatch = pending_jobs.empty();
