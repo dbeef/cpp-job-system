@@ -30,6 +30,7 @@ namespace job_system {
 
     static const int WORKERS_COUNT = 12;
 
+    std::atomic_bool added_job{false};
     std::atomic_bool system_working{false};
     std::thread system_thread;
     std::array<Worker, WORKERS_COUNT> workers;
@@ -71,15 +72,17 @@ namespace job_system {
                     worker_idle_lock.unlock();
                     // wake workers
                     workers_updated_cv.notify_all();
-                } else break;
+                } else {
+                    break;
+                }
             }
 
             pending_jobs_guard.unlock();
 
             std::unique_lock<std::mutex> lock(system_loop_updated_mtx);
-            system_loop_updated_cv.wait(lock);
-            // do nothing, needed only for synchronization
-            lock.unlock();
+            if (added_job) continue;
+            system_loop_updated_cv.wait(lock, [] { return !added_job.load(); });
+            added_job.store(false);
         }
     }
 
@@ -93,6 +96,7 @@ namespace job_system {
                 worker.job->execute();
                 worker.job->done.store(true);
                 worker.idle.store(true);
+
                 // wake system loop
                 system_loop_updated_cv.notify_all();
             }
@@ -111,9 +115,9 @@ namespace job_system {
         while (system_working.load()) {
 
             // Wait untill job is done or added
-            std::unique_lock<std::mutex> main_loop_lock(system_loop_updated_mtx);
-            system_loop_updated_cv.wait(main_loop_lock);
-            main_loop_lock.unlock();
+            std::unique_lock<std::mutex> system_loop_lock(system_loop_updated_mtx);
+            system_loop_updated_cv.wait(system_loop_lock);
+            system_loop_lock.unlock();
 
             std::unique_lock<std::mutex> pending_jobs_lock(pending_jobs_mtx);
             bool no_jobs_to_dispatch = pending_jobs.empty();
@@ -137,6 +141,9 @@ namespace job_system {
         std::lock_guard<std::mutex> lock(pending_jobs_mtx);
         pending_jobs.push(job);
         // wake system loop
+        std::unique_lock<std::mutex> l(system_loop_updated_mtx);
+        added_job.store(true);
+        l.unlock();
         system_loop_updated_cv.notify_all();
     }
 

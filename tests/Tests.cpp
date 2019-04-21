@@ -39,7 +39,7 @@ TEST(JobSystemTest, testStartStop) {
 TEST(JobSystemTest, testBasicTest) {
     job_system::start();
 
-    for(int index = 0; index < 25; index++) {
+    for(int index = 0; index < 100000 ; index++) {
         auto counter_job = std::make_shared<CounterJob>();
         job_system::dispatch(counter_job);
         job_system::wait_for_done();
@@ -55,7 +55,7 @@ TEST(JobSystemTest, testLongAndExpensiveTest) {
     // create jobs
     std::vector<std::shared_ptr<Job>> expensive_jobs;
 
-    for (int a = 0; a < 25; a++) {
+    for (int a = 0; a < 50000; a++) {
         auto job = std::make_shared<ExpensiveJob>();
         expensive_jobs.push_back(job);
         EXPECT_EQ(job->done.load(), false);
@@ -65,7 +65,6 @@ TEST(JobSystemTest, testLongAndExpensiveTest) {
     job_system::wait_for_done();
 
     for(const auto& job : expensive_jobs) EXPECT_EQ(job->done.load(), true);
-
 
     job_system::shutdown();
 }
