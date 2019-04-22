@@ -29,7 +29,7 @@ public:
 
 };
 
-TEST(JobSystemTest, testStartStop) {
+TEST(JobSystemTest, StartStopTest) {
     JobSystem job_system;
     job_system.start();
     EXPECT_EQ(job_system.is_working(), true);
@@ -37,7 +37,7 @@ TEST(JobSystemTest, testStartStop) {
     EXPECT_EQ(job_system.is_working(), false);
 }
 
-TEST(JobSystemTest, testLongAndInexpensiveTest_DispatchAndWait) {
+TEST(JobSystemTest, LongAndInexpensiveTest_DispatchAndWait) {
 
     JobSystem job_system;
 
@@ -55,7 +55,7 @@ TEST(JobSystemTest, testLongAndInexpensiveTest_DispatchAndWait) {
     }
 }
 
-TEST(JobSystemTest, testLongAndExpensiveTest_MultipleDispatchThenWait) {
+TEST(JobSystemTest, LongAndExpensiveTest_MultipleDispatchThenWait) {
     JobSystem job_system;
     job_system.start();
 
@@ -76,7 +76,7 @@ TEST(JobSystemTest, testLongAndExpensiveTest_MultipleDispatchThenWait) {
     job_system.shutdown();
 }
 
-TEST(JobSystemTest, testLongAndExpensiveTest_WaitForSpecificJob) {
+TEST(JobSystemTest, LongAndExpensiveTest_WaitForSpecificJob) {
     JobSystem job_system;
     job_system.start();
 
@@ -101,7 +101,7 @@ TEST(JobSystemTest, testLongAndExpensiveTest_WaitForSpecificJob) {
     job_system.shutdown();
 }
 
-TEST(JobSystemTest, testLongAndExpensiveTest_ShutdownWithoutWaiting) {
+TEST(JobSystemTest, LongAndExpensiveTest_ShutdownWithoutWaiting) {
     JobSystem job_system;
     job_system.start();
 
@@ -118,7 +118,7 @@ TEST(JobSystemTest, testLongAndExpensiveTest_ShutdownWithoutWaiting) {
     job_system.shutdown();
 }
 
-TEST(JobSystemTest, multipleSystemsInParallel) {
+TEST(JobSystemTest, LongAndExpensiveTest_MultipleSystemsInParallel) {
 
     JobSystem job_system_1;
     JobSystem job_system_2;
