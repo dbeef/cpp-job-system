@@ -55,7 +55,10 @@ void JobSystem::worker_loop(const int worker_index) {
 
         if (!worker.idle.load()) {
             worker.job->execute();
+            std::unique_lock<std::mutex> done_mtx(worker.job->mtx);
             worker.job->done.store(true);
+            done_mtx.unlock();
+            worker.job->cv.notify_one();
             worker.idle.store(true);
 
             std::unique_lock<std::mutex> lck(system_loop_updated_mtx);

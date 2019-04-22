@@ -17,6 +17,17 @@ public:
     std::atomic_bool done{false};
 
     virtual void execute() = 0;
+
+    std::mutex mtx;
+    std::condition_variable cv;
+
+    void wait_for_done() {
+        while (!done.load()) {
+            std::unique_lock<std::mutex> lock(mtx);
+            if (done.load()) break;
+            cv.wait(lock);
+        }
+    }
 };
 
 class Worker {
@@ -24,7 +35,7 @@ public:
 
     Worker() = default;
 
-    Worker(Worker&& w) noexcept {
+    Worker(Worker &&w) noexcept {
         idle.store(w.idle.load());
         job = w.job;
     }

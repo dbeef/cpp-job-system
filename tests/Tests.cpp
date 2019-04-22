@@ -76,6 +76,48 @@ TEST(JobSystemTest, testLongAndExpensiveTest_MultipleDispatchThenWait) {
     job_system.shutdown();
 }
 
+TEST(JobSystemTest, testLongAndExpensiveTest_WaitForSpecificJob) {
+    JobSystem job_system;
+    job_system.start();
+
+    // create jobs
+    std::vector<std::shared_ptr<Job>> expensive_jobs;
+
+    for (int a = 0; a < 50000; a++) {
+        auto job = std::make_shared<ExpensiveJob>();
+        expensive_jobs.push_back(job);
+        EXPECT_EQ(job->done.load(), false);
+        job_system.dispatch(job);
+    }
+
+    auto special_job = std::make_shared<ExpensiveJob>();
+    EXPECT_EQ(special_job->done.load(), false);
+    job_system.dispatch(special_job);
+
+    special_job->wait_for_done();
+
+    for(const auto& job : expensive_jobs) EXPECT_EQ(job->done.load(), true);
+
+    job_system.shutdown();
+}
+
+TEST(JobSystemTest, testLongAndExpensiveTest_ShutdownWithoutWaiting) {
+    JobSystem job_system;
+    job_system.start();
+
+    // create jobs
+    std::vector<std::shared_ptr<Job>> expensive_jobs;
+
+    for (int a = 0; a < 50000; a++) {
+        auto job = std::make_shared<ExpensiveJob>();
+        expensive_jobs.push_back(job);
+        EXPECT_EQ(job->done.load(), false);
+        job_system.dispatch(job);
+    }
+
+    job_system.shutdown();
+}
+
 TEST(JobSystemTest, multipleSystemsInParallel) {
 
     JobSystem job_system_1;
