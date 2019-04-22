@@ -137,3 +137,7 @@ void JobSystem::shutdown() {
     for (int index = 0; index < WORKERS_COUNT; index++) workers[index].thread.join();
 }
 
+JobSystem::~JobSystem() {
+    shutdown();
+}
+

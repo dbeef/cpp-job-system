@@ -21,6 +21,14 @@ public:
 
 class Worker {
 public:
+
+    Worker() = default;
+
+    Worker(Worker&& w) noexcept {
+        idle.store(w.idle.load());
+        job = w.job;
+    }
+
     std::atomic_bool idle{true};
     std::thread thread;
     std::shared_ptr<Job> job;
@@ -28,6 +36,20 @@ public:
 
 class JobSystem {
 public:
+
+    explicit JobSystem(int workers_count = 4) : WORKERS_COUNT(workers_count) {
+        workers.resize(static_cast<unsigned long>(WORKERS_COUNT));
+    }
+
+    JobSystem(const JobSystem &) = delete;
+
+    JobSystem(JobSystem &&) = delete;
+
+    ~JobSystem();
+
+    JobSystem &operator=(const JobSystem &other) = delete;
+
+    JobSystem &operator=(JobSystem &&other) = delete;
 
     // returns when pending jobs queue is empty and all workers are idle
     void wait_for_done();
@@ -45,13 +67,13 @@ public:
 
 private:
 
-    static const int WORKERS_COUNT = 12;
+    const int WORKERS_COUNT;
 
     std::atomic_bool job_done{false};
     std::atomic_bool added_job{false};
     std::atomic_bool system_working{false};
     std::thread system_thread;
-    std::array<Worker, WORKERS_COUNT> workers;
+    std::vector<Worker> workers{};
 
     // for accessing pending_jobs queue
     std::mutex pending_jobs_mtx;
