@@ -1,7 +1,7 @@
 # cpp-job-system
 
 Works by passing a pointer to Job class implementation.
-See tests directory for further introduciton.
+See tests directory for further introduction.
 
 Some links for reference:
 
